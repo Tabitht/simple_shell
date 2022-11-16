@@ -1,39 +1,73 @@
 #include "main.h"
 
 /**
- * main - main function
- * @argc: argument count
- * @argv: array of argument strings
- * @env: environment variables
- * Return: 0 on success
+ * free_data - frees data structure
+ *
+ * @datash: data structure
+ * Return: no return
  */
-int main(int argc __attribute__((unused)), char **argv, char **env)
+void free_data(data_shell *datash)
 {
-	char *cmd;
-	char **args;
-	char *shell_name = argv[0];
-	int count;
+	unsigned int i;
 
-	_setenv("_", shell_name, 1);
-	count = 1;
-	while (1)
+	for (i = 0; datash->_environ[i]; i++)
 	{
-		write(STDOUT_FILENO, "$ ", 3);
-		cmd = read_cmd();
-		if (!cmd)
-			continue;
-		args = _split(cmd, " ");
-		exec_cmd(args, env, cmd, &count);
-		free(args);
-
-		if (isatty(STDIN_FILENO) == 0)
-		{
-			free(cmd);
-			exit(0);
-		}
-
-		free(cmd);
+		free(datash->_environ[i]);
 	}
 
-	return (0);
+	free(datash->_environ);
+	free(datash->pid);
+}
+
+/**
+ * set_data - Initialize data structure
+ *
+ * @datash: data structure
+ * @av: argument vector
+ * Return: no return
+ */
+void set_data(data_shell *datash, char **av)
+{
+	unsigned int i;
+
+	datash->av = av;
+	datash->input = NULL;
+	datash->args = NULL;
+	datash->status = 0;
+	datash->counter = 1;
+
+	for (i = 0; environ[i]; i++)
+		;
+
+	datash->_environ = malloc(sizeof(char *) * (i + 1));
+
+	for (i = 0; environ[i]; i++)
+	{
+		datash->_environ[i] = _strdup(environ[i]);
+	}
+
+	datash->_environ[i] = NULL;
+	datash->pid = aux_itoa(getpid());
+}
+
+/**
+ * main - Entry point
+ *
+ * @ac: argument count
+ * @av: argument vector
+ *
+ * Return: 0 on success.
+ */
+int main(int ac, char **av)
+{
+	data_shell datash;
+	(void) ac;
+
+	signal(SIGINT, get_sigint);
+	set_data(&datash, av);
+	shell_loop(&datash);
+	free_data(&datash);
+	if (datash.status < 0)
+		return (255);
+	return (datash.status);
 }
